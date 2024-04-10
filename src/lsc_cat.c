@@ -6,6 +6,7 @@
 #include <handleapi.h>
 #include <winbase.h>
 #include <winnt.h>
+#include "lsc_file_util.h"
 
 /*
 Windows file handling:
@@ -63,46 +64,13 @@ to a pointer to any object or function.
         usage();
         return -1;
     } else if (argc != MAX_ARGS) {
-        /*
-        Here our goal is to read each character in a file and output it.
-
-        1. We need to retrieve the handle of the file to read.
-
-        We cann use the CreateFile function from WinAPI to open the file
-
-        Files are securable objects so we need to follow the access-control model
-
-        We will be using the security descriptor FILE_GENERIC_READ, giving us:
-            - FILE_READ_ATTRIBUTES
-            - FILE_READ_DATA
-            - FILE_READ_EA
-            - STANDARD_RIGHTS_READ
-            - SYNCHRONISE
-        
-        We also need to set a sharing mode. I will be using FILE_SHARE_READ,
-
-        lpSecurityAttributes is NULL so file_handle cannot be inherited by any child processes.
-
-        dwCreationDisposition is OPEN_EXISTING meaning that the file will ONLY be opened if it exists.
-
-        dwFlagsAndAttributes is FILE_ATTRIBUTE_NORMAL
-
-        hTemplateFile is NULL as we don't have or need a template file with attributes to use
-        */
-
         const char* file_name = argv[1];
 
-        HANDLE file_handle = CreateFile(
-            file_name,
-            GENERIC_READ,
-            FILE_SHARE_READ,
-            NULL,
-            OPEN_EXISTING,
-            FILE_ATTRIBUTE_NORMAL,
-            NULL
-        );
+        HANDLE file_handle = lsc_file_create(file_name);
 
         if (file_handle == INVALID_HANDLE_VALUE || !file_handle) {
+            lsc_file_close_file(file_handle);
+
             printf("\nERROR when opening file. ERROR CODE (https://learn.microsoft.com/en-us/windows/win32/debug/system-error-codes): %lu", GetLastError());
             usage();
             return -1;
@@ -110,31 +78,34 @@ to a pointer to any object or function.
 
         DWORD file_size;
 
-        int success = GetFileSizeEx(file_handle, &file_size);
+        if (!lsc_file_get_size(file_handle, &file_size)) {
+            lsc_file_close_file(file_handle);
 
-        if (!success) {
             printf("\nERROR when polling file size. ERROR CODE (https://learn.microsoft.com/en-us/windows/win32/debug/system-error-codes): %lu", GetLastError());
             usage();
-            return -1;
+            return EXIT_FAILURE;
         }
 
-        // >> A1M
-        char buffer[file_size];
+        char buffer[file_size]= {};
 
-        if (ReadFile(file_handle, &buffer, file_size, 0, NULL) == FALSE) {
+        if (!lsc_file_read_full_to_buffer(file_handle, buffer, file_size)) {
+            lsc_file_close_file(file_handle);
+
             printf("\nERROR when reading file. ERROR CODE (https://learn.microsoft.com/en-us/windows/win32/debug/system-error-codes): %lu", GetLastError());
             usage();
-            return -1;
+            return EXIT_FAILURE;
         }
 
+        lsc_file_close_file(file_handle);
+
         printf("%s", buffer);
+        
 
-        CloseHandle(file_handle);
-
-        return 0;
+        return EXIT_SUCCESS;
+        
     }
 
     usage();
 
-    return -1;
+    return EXIT_SUCCESS;
 }
