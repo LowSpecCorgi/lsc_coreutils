@@ -6,7 +6,7 @@
 #include <handleapi.h>
 #include <winbase.h>
 #include <winnt.h>
-#include "lsc_file_util.h"
+#include "lsc_file_read.h"
 
 /*
 Windows file handling:

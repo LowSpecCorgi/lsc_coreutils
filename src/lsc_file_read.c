@@ -1,4 +1,4 @@
-#include "lsc_file_util.h"
+#include "lsc_file_read.h"
 
 HANDLE lsc_file_create(const char* file_name) {
     return CreateFile(
